@@ -1,0 +1,25 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# large / reproducible artifacts -- regenerate via scripts rather than committing
+data/audio/public/
+data/metadata_public.csv
+training/checkpoints/
+evaluation/baseline_outputs/
+evaluation/finetuned_outputs/
+
+# os
+.DS_Store
+Thumbs.db
+claude.md
+zdnd/
+
+# temp transfer artifact, not part of the repo
+public_corpus_upload.zip
+.serena/

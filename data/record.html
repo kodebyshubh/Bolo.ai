@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hinglish Recorder</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; background:#0f1115; color:#eee; }
+  h1 { font-size: 18px; color:#aaa; }
+  #progress { color:#888; margin-bottom: 8px; }
+  #sentence { font-size: 28px; line-height:1.4; padding: 24px; background:#1b1e26; border-radius: 12px; margin: 16px 0; min-height: 90px; }
+  #filename { color:#666; font-size:13px; margin-top:-8px; margin-bottom:16px; }
+  button { font-size: 16px; padding: 10px 18px; margin-right: 8px; margin-bottom:8px; border-radius: 8px; border: none; cursor: pointer; }
+  #recordBtn { background:#c0392b; color:white; }
+  #recordBtn.recording { background:#888; }
+  #saveBtn { background:#27ae60; color:white; }
+  #redoBtn { background:#555; color:white; }
+  #skipBtn { background:#333; color:#ccc; }
+  button:disabled { opacity:0.4; cursor:not-allowed; }
+  #status { color:#f1c40f; height:20px; margin-bottom: 8px;}
+  audio { width:100%; margin: 12px 0; }
+  #keys { color:#666; font-size: 13px; margin-top: 20px; }
+  #done { font-size: 22px; text-align:center; padding: 60px 0; }
+</style>
+</head>
+<body>
+<h1>Hinglish self-recording -- bolo.ai dataset</h1>
+<div id="progress"></div>
+<div id="filename"></div>
+<div id="sentence"></div>
+<div id="status"></div>
+<audio id="player" controls></audio>
+<div>
+  <button id="recordBtn">Record (Space)</button>
+  <button id="saveBtn" disabled>Save &amp; Next (Enter)</button>
+  <button id="redoBtn" disabled>Redo (Backspace)</button>
+  <button id="skipBtn">Skip (/)</button>
+</div>
+<div id="keys">Space = start/stop recording, Enter = save &amp; next, Backspace = redo current line, / = skip line</div>
+<div id="done" style="display:none">All done! Move the downloaded files into data/audio/selfrecorded/.</div>
+
+<script>
+const sentences = [{"filename": "selfrecorded_001.wav", "text": "Hi, main Shubh bol raha hoon, kaise ho aap?"}, {"filename": "selfrecorded_002.wav", "text": "Namaste, aaj mausam bahut accha hai."}, {"filename": "selfrecorded_003.wav", "text": "Kya haal hai bhai, sab theek?"}, {"filename": "selfrecorded_004.wav", "text": "Good morning, aaj ka din kaisa raha?"}, {"filename": "selfrecorded_005.wav", "text": "Thoda busy hoon, baad mein baat karte hain."}, {"filename": "selfrecorded_006.wav", "text": "Chaliye shuru karte hain, ready ho?"}, {"filename": "selfrecorded_007.wav", "text": "Ek minute ruko, main abhi aata hoon."}, {"filename": "selfrecorded_008.wav", "text": "Sorry, thoda late ho gaya main."}, {"filename": "selfrecorded_009.wav", "text": "Kal milte hain, take care."}, {"filename": "selfrecorded_010.wav", "text": "Bye bhai, apna khayal rakhna."}, {"filename": "selfrecorded_011.wav", "text": "Mera order kab aayega?"}, {"filename": "selfrecorded_012.wav", "text": "Order ka status check kar sakte ho?"}, {"filename": "selfrecorded_013.wav", "text": "Maine kal ek order place kiya tha."}, {"filename": "selfrecorded_014.wav", "text": "Delivery date kya hai mere order ki?"}, {"filename": "selfrecorded_015.wav", "text": "Order number one two three four five hai mera."}, {"filename": "selfrecorded_016.wav", "text": "Yeh product return karna hai mujhe."}, {"filename": "selfrecorded_017.wav", "text": "Refund kab tak milega mera?"}, {"filename": "selfrecorded_018.wav", "text": "Courier boy ne call nahi kiya abhi tak."}, {"filename": "selfrecorded_019.wav", "text": "Package damaged aaya hai, replace karo please."}, {"filename": "selfrecorded_020.wav", "text": "Tracking link nahi mil raha hai mujhe."}, {"filename": "selfrecorded_021.wav", "text": "Order cancel karna hai, kaise karu?"}, {"filename": "selfrecorded_022.wav", "text": "Payment ho gaya hai, order confirm hua ya nahi?"}, {"filename": "selfrecorded_023.wav", "text": "Address change karna hai delivery ka."}, {"filename": "selfrecorded_024.wav", "text": "Kitne din mein deliver hoga yeh item?"}, {"filename": "selfrecorded_025.wav", "text": "COD available hai kya is product par?"}, {"filename": "selfrecorded_026.wav", "text": "Wrong item aaya hai mere order mein."}, {"filename": "selfrecorded_027.wav", "text": "Invoice chahiye mujhe is order ki."}, {"filename": "selfrecorded_028.wav", "text": "Delivery boy ne wrong address par deliver kar diya."}, {"filename": "selfrecorded_029.wav", "text": "Exchange kar sakte ho size ka?"}, {"filename": "selfrecorded_030.wav", "text": "Order history dikhao mujhe please."}, {"filename": "selfrecorded_031.wav", "text": "Mera pincode four one one zero one four hai."}, {"filename": "selfrecorded_032.wav", "text": "Meeting subah nau baje hai kal."}, {"filename": "selfrecorded_033.wav", "text": "Total bill teen sau pachaas rupaye hua."}, {"filename": "selfrecorded_034.wav", "text": "Do hazaar chaubis mein maine yeh phone khareeda tha."}, {"filename": "selfrecorded_035.wav", "text": "Flight ka time shaam paanch baj kar tees minute hai."}, {"filename": "selfrecorded_036.wav", "text": "Ghar ka address flat number bees hai."}, {"filename": "selfrecorded_037.wav", "text": "Is mahine ki pandrah tareekh ko delivery hogi."}, {"filename": "selfrecorded_038.wav", "text": "Discount tees percent mil raha hai abhi."}, {"filename": "selfrecorded_039.wav", "text": "Warranty do saal ki hai is product par."}, {"filename": "selfrecorded_040.wav", "text": "EMI teen hazaar rupaye mahine ki bharni hai."}, {"filename": "selfrecorded_041.wav", "text": "Rajesh aur Priya kal market gaye the."}, {"filename": "selfrecorded_042.wav", "text": "Aditya ne bola ki woh Sunday ko aayega."}, {"filename": "selfrecorded_043.wav", "text": "Meri behen ka naam Ananya hai."}, {"filename": "selfrecorded_044.wav", "text": "Venkatesh ji ne meeting reschedule kar di."}, {"filename": "selfrecorded_045.wav", "text": "Fatima aur Arjun dono office mein hain."}, {"filename": "selfrecorded_046.wav", "text": "Mera dost Siddharth Bangalore mein rehta hai."}, {"filename": "selfrecorded_047.wav", "text": "Lakshmi aunty ne bahut acchi biryani banayi."}, {"filename": "selfrecorded_048.wav", "text": "Mohammed bhai ki dukaan yahin paas mein hai."}, {"filename": "selfrecorded_049.wav", "text": "Kavya aur Rohan ki shaadi agle mahine hai."}, {"filename": "selfrecorded_050.wav", "text": "Iyer sir ne project appreciate kiya."}, {"filename": "selfrecorded_051.wav", "text": "Yeh toh bahut mazedaar tha <laugh>"}, {"filename": "selfrecorded_052.wav", "text": "Uff, itna kaam abhi baaki hai <sigh>"}, {"filename": "selfrecorded_053.wav", "text": "Kya baat hai, bahut badhiya kiya tumne <laugh>"}, {"filename": "selfrecorded_054.wav", "text": "Yeh order phir se late ho gaya <angry>"}, {"filename": "selfrecorded_055.wav", "text": "Wah, kitna accha surprise hai yeh <excited>"}, {"filename": "selfrecorded_056.wav", "text": "Mujhe nahi pata tha yeh itna mushkil hoga <sigh>"}, {"filename": "selfrecorded_057.wav", "text": "Finally ho gaya, bahut maza aaya <laugh>"}, {"filename": "selfrecorded_058.wav", "text": "Yaar yeh third time hai, ab toh gussa aa raha hai <angry>"}, {"filename": "selfrecorded_059.wav", "text": "Itni jaldi result aa gaya, main toh khush hoon <excited>"}, {"filename": "selfrecorded_060.wav", "text": "Chalo koi baat nahi, agli baar dekhenge <sigh>"}, {"filename": "selfrecorded_061.wav", "text": "Main office se abhi nikal raha hoon, traffic bahut hai."}, {"filename": "selfrecorded_062.wav", "text": "Weekend par hum trip plan kar rahe hain."}, {"filename": "selfrecorded_063.wav", "text": "Yeh laptop bahut slow chal raha hai aajkal."}, {"filename": "selfrecorded_064.wav", "text": "Mujhe ek achhi recipe chahiye dinner ke liye."}, {"filename": "selfrecorded_065.wav", "text": "School mein exams start hone wale hain."}, {"filename": "selfrecorded_066.wav", "text": "Is app ka new update bahut smooth hai."}, {"filename": "selfrecorded_067.wav", "text": "Mummy ne bola khana ready hai, aa jao."}, {"filename": "selfrecorded_068.wav", "text": "Meeting ke liye slides ready kar liye maine."}, {"filename": "selfrecorded_069.wav", "text": "Bahut din ho gaye hum log mile nahi."}, {"filename": "selfrecorded_070.wav", "text": "Yeh movie dekhne layak hai ya nahi?"}, {"filename": "selfrecorded_071.wav", "text": "Internet connection bahut slow chal raha hai ghar par."}, {"filename": "selfrecorded_072.wav", "text": "Kal se gym phir se start karna hai."}, {"filename": "selfrecorded_073.wav", "text": "Yeh shirt kis size mein available hai?"}, {"filename": "selfrecorded_074.wav", "text": "Rent is mahine time par bhar diya maine."}, {"filename": "selfrecorded_075.wav", "text": "Bike service karwani hai is weekend mein."}, {"filename": "selfrecorded_076.wav", "text": "College ke friends se baat hui kal."}, {"filename": "selfrecorded_077.wav", "text": "Naya restaurant khula hai society ke paas."}, {"filename": "selfrecorded_078.wav", "text": "Interview kaisa gaya tumhara aaj?"}, {"filename": "selfrecorded_079.wav", "text": "Bijli chali gayi thi do ghante ke liye."}, {"filename": "selfrecorded_080.wav", "text": "Cricket match dekhne chalte hain shaam ko."}, {"filename": "selfrecorded_081.wav", "text": "Yeh headphones ki sound quality bahut acchi hai."}, {"filename": "selfrecorded_082.wav", "text": "Ration list bana li maine subah hi."}, {"filename": "selfrecorded_083.wav", "text": "Naya phone lena hai is Diwali par."}, {"filename": "selfrecorded_084.wav", "text": "Office ka WiFi password kya hai?"}, {"filename": "selfrecorded_085.wav", "text": "Kal ka homework complete kar liya maine."}, {"filename": "selfrecorded_086.wav", "text": "Yeh dress function ke liye perfect hai."}, {"filename": "selfrecorded_087.wav", "text": "Traffic jaam ki wajah se der ho gayi."}, {"filename": "selfrecorded_088.wav", "text": "Chai peene chalte hain, break le lete hain."}, {"filename": "selfrecorded_089.wav", "text": "Yeh recipe try karni hai is weekend."}, {"filename": "selfrecorded_090.wav", "text": "Naye saal ka resolution kya banaya tumne?"}, {"filename": "selfrecorded_091.wav", "text": "Theek hai, ab main chalta hoon."}, {"filename": "selfrecorded_092.wav", "text": "Sab kuch samajh aa gaya, thank you."}, {"filename": "selfrecorded_093.wav", "text": "Phir milte hain, take care bhai."}, {"filename": "selfrecorded_094.wav", "text": "Yeh conversation yahin khatam karte hain."}, {"filename": "selfrecorded_095.wav", "text": "Koi aur sawaal ho toh batana."}, {"filename": "selfrecorded_096.wav", "text": "Bahut accha laga baat karke."}, {"filename": "selfrecorded_097.wav", "text": "Chalo ab kaam par wapas jaate hain."}, {"filename": "selfrecorded_098.wav", "text": "Aaj ke liye itna hi, good night."}, {"filename": "selfrecorded_099.wav", "text": "Agli baar aur detail mein baat karenge."}, {"filename": "selfrecorded_100.wav", "text": "Dhanyavaad, apna dhyan rakhna."}];
+let idx = 0;
+let stream, mediaRecorder, chunks = [];
+let currentWavBlob = null;
+let isRecording = false;
+
+const el = {
+  progress: document.getElementById('progress'),
+  filename: document.getElementById('filename'),
+  sentence: document.getElementById('sentence'),
+  status: document.getElementById('status'),
+  player: document.getElementById('player'),
+  recordBtn: document.getElementById('recordBtn'),
+  saveBtn: document.getElementById('saveBtn'),
+  redoBtn: document.getElementById('redoBtn'),
+  skipBtn: document.getElementById('skipBtn'),
+  done: document.getElementById('done'),
+};
+
+function render() {
+  if (idx >= sentences.length) {
+    ['progress','filename','sentence','status','player','recordBtn','saveBtn','redoBtn','skipBtn'].forEach(function(k) { el[k].style.display = 'none'; });
+    el.done.style.display = 'block';
+    return;
+  }
+  const item = sentences[idx];
+  el.progress.textContent = (idx + 1) + ' / ' + sentences.length;
+  el.filename.textContent = item.filename;
+  el.sentence.textContent = item.text;
+  el.status.textContent = '';
+  el.player.src = '';
+  currentWavBlob = null;
+  el.saveBtn.disabled = true;
+  el.redoBtn.disabled = true;
+  el.recordBtn.textContent = 'Record (Space)';
+  el.recordBtn.classList.remove('recording');
+}
+
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  function writeString(offset, s) { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); }
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    let s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+function mixToMono(buf) {
+  if (buf.numberOfChannels === 1) return buf.getChannelData(0);
+  const ch0 = buf.getChannelData(0), ch1 = buf.getChannelData(1);
+  const out = new Float32Array(ch0.length);
+  for (let i = 0; i < ch0.length; i++) out[i] = (ch0[i] + ch1[i]) / 2;
+  return out;
+}
+
+async function startRecording() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+  chunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = function(e) { chunks.push(e.data); };
+  mediaRecorder.start();
+  isRecording = true;
+  el.recordBtn.textContent = 'Stop (Space)';
+  el.recordBtn.classList.add('recording');
+  el.status.textContent = 'recording...';
+  el.saveBtn.disabled = true;
+  el.redoBtn.disabled = true;
+}
+
+function stopRecording() {
+  return new Promise(function(resolve) {
+    mediaRecorder.onstop = async function() {
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      const webmBlob = new Blob(chunks, { type: 'audio/webm' });
+      const arrayBuf = await webmBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+      const mono = mixToMono(audioBuf);
+      currentWavBlob = encodeWAV(mono, audioBuf.sampleRate);
+      el.player.src = URL.createObjectURL(currentWavBlob);
+      el.status.textContent = 'captured ' + (mono.length / audioBuf.sampleRate).toFixed(1) + 's -- listen, then Save or Redo';
+      el.saveBtn.disabled = false;
+      el.redoBtn.disabled = false;
+      isRecording = false;
+      el.recordBtn.textContent = 'Record (Space)';
+      el.recordBtn.classList.remove('recording');
+      resolve();
+    };
+    mediaRecorder.stop();
+  });
+}
+
+function saveAndNext() {
+  if (!currentWavBlob) return;
+  const item = sentences[idx];
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(currentWavBlob);
+  a.download = item.filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  idx++;
+  render();
+}
+
+function redo() {
+  el.player.src = '';
+  el.status.textContent = 'discarded -- record again';
+  currentWavBlob = null;
+  el.saveBtn.disabled = true;
+  el.redoBtn.disabled = true;
+}
+
+el.recordBtn.onclick = function() { isRecording ? stopRecording() : startRecording(); };
+el.saveBtn.onclick = saveAndNext;
+el.redoBtn.onclick = redo;
+el.skipBtn.onclick = function() { idx++; render(); };
+
+document.addEventListener('keydown', function(e) {
+  if (e.code === 'Space') { e.preventDefault(); isRecording ? stopRecording() : startRecording(); }
+  if (e.code === 'Enter') { e.preventDefault(); saveAndNext(); }
+  if (e.code === 'Backspace') { e.preventDefault(); redo(); }
+  if (e.code === 'Slash') { e.preventDefault(); idx++; render(); }
+});
+
+render();
+</script>
+</body>
+</html>

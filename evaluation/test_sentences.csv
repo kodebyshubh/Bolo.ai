@@ -1,0 +1,21 @@
+id,sentence,language
+test_001,"Good afternoon, I wanted to check on my recent purchase.",english
+test_002,"The weather forecast says it will rain tomorrow evening.",english
+test_003,"Could you please schedule a meeting for next Wednesday?",english
+test_004,"This restaurant serves the best coffee in the city.",english
+test_005,"My flight got delayed by almost two hours today.",english
+test_006,"The new software update fixed several annoying bugs.",english
+test_007,"She works as a data scientist at a fintech startup.",english
+test_008,"Mujhe kal subah jaldi uthna hai.",hindi
+test_009,"Yah kitab bahut dilchasp hai.",hindi
+test_010,"Kripya mujhe apna pata bataiye.",hindi
+test_011,"Aaj mausam bahut suhavna hai.",hindi
+test_012,"Meri maa khana bana rahi hain.",hindi
+test_013,"Kya aap hindi samajh sakte hain?",hindi
+test_014,"Yah shahar bahut sundar hai.",hindi
+test_015,"Yeh naya gadget kaafi impressive laga mujhe.",hinglish
+test_016,"Office mein aaj bahut important meeting hai.",hinglish
+test_017,"Mujhe apna password reset karna hai please help.",hinglish
+test_018,"Weekend par hum ek naya cafe explore karenge.",hinglish
+test_019,"Yeh feature bug free nahi hai abhi tak.",hinglish
+test_020,"Mera flight tomorrow morning hai, jaldi nikalna hoga.",hinglish

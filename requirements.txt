@@ -1,0 +1,32 @@
+# Fine-tuning
+unsloth
+torch
+datasets
+transformers
+
+# Audio
+soundfile
+librosa
+snac
+
+# Transliteration (Hindi Devanagari -> Latin script, see data/fetch_public_corpus.py)
+indic-transliteration
+
+# Config
+python-dotenv
+
+# Agent server + WebSocket transport
+fastapi
+uvicorn
+websockets
+
+# LLM (Groq)
+groq
+
+# STT (AssemblyAI -- Groq's Whisper endpoint is batch-only, no streaming; see zdnd/decision.md)
+assemblyai
+
+# VAD (webrtcvad-wheels: prebuilt binaries of webrtcvad's API -- plain
+# webrtcvad needs a C compiler to build from source, not available on
+# every dev machine)
+webrtcvad-wheels

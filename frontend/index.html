@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bolo.ai Voice Agent</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; background:#0f1115; color:#eee; }
+  h1 { font-size: 20px; color:#aaa; }
+  .row { display:flex; gap:10px; align-items:center; margin: 16px 0; }
+  input[type=text] { flex:1; padding:8px; border-radius:6px; border:1px solid #333; background:#1b1e26; color:#eee; }
+  button { font-size: 15px; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; }
+  #recordBtn { background:#c0392b; color:white; }
+  #recordBtn.recording { background:#888; }
+  button:disabled { opacity:0.4; cursor:not-allowed; }
+  #status { color:#f1c40f; min-height:20px; margin: 8px 0; }
+  #transcript { background:#1b1e26; border-radius:10px; padding:16px; margin-top:16px; min-height: 60px; }
+  .turn { margin-bottom: 10px; }
+  .turn .label { color:#888; font-size:12px; text-transform:uppercase; }
+  .turn .text { font-size:16px; }
+  #timings { color:#666; font-size:12px; margin-top:16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+
+<h1>Bolo.ai Voice Agent</h1>
+
+<div class="row">
+  <label for="wsUrl" style="color:#888;font-size:13px;">Server:</label>
+  <input type="text" id="wsUrl" value="ws://localhost:8000/ws/converse">
+</div>
+
+<div class="row">
+  <button id="recordBtn">Hold to Speak (click to start/stop)</button>
+</div>
+
+<div id="status"></div>
+
+<div id="transcript"></div>
+<div id="timings"></div>
+
+<script>
+let mediaRecorder, stream, chunks = [];
+let isRecording = false;
+let ws = null;
+
+const el = {
+  recordBtn: document.getElementById("recordBtn"),
+  status: document.getElementById("status"),
+  transcript: document.getElementById("transcript"),
+  timings: document.getElementById("timings"),
+  wsUrl: document.getElementById("wsUrl"),
+};
+
+function addTurn(label, text) {
+  const div = document.createElement("div");
+  div.className = "turn";
+  div.innerHTML = `<div class="label">${label}</div><div class="text">${text}</div>`;
+  el.transcript.appendChild(div);
+  return div;
+}
+
+async function startRecording() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+  chunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+  mediaRecorder.start();
+  isRecording = true;
+  el.recordBtn.textContent = "Stop";
+  el.recordBtn.classList.add("recording");
+  el.status.textContent = "recording...";
+}
+
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  function writeString(offset, s) { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); }
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    let s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+function mixToMono(buf) {
+  if (buf.numberOfChannels === 1) return buf.getChannelData(0);
+  const ch0 = buf.getChannelData(0), ch1 = buf.getChannelData(1);
+  const out = new Float32Array(ch0.length);
+  for (let i = 0; i < ch0.length; i++) out[i] = (ch0[i] + ch1[i]) / 2;
+  return out;
+}
+
+async function stopRecordingAndSend() {
+  return new Promise((resolve) => {
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const webmBlob = new Blob(chunks, { type: "audio/webm" });
+      const arrayBuf = await webmBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+      const mono = mixToMono(audioBuf);
+      const wavBlob = encodeWAV(mono, audioBuf.sampleRate);
+      resolve(wavBlob);
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// simple sequential playback queue: audio elements play back to back in
+// arrival order, but a later sentence doesn't have to wait for the whole
+// reply to exist before it can start queuing -- it plays as soon as its
+// turn comes up and it's already arrived.
+const playbackQueue = [];
+let isPlaying = false;
+
+function enqueueAudio(url) {
+  playbackQueue.push(url);
+  playNext();
+}
+
+function playNext() {
+  if (isPlaying || playbackQueue.length === 0) return;
+  isPlaying = true;
+  const url = playbackQueue.shift();
+  const audio = new Audio(url);
+  audio.onended = () => {
+    isPlaying = false;
+    playNext();
+  };
+  // a load/decode failure on the received audio itself (not an autoplay
+  // block) fires as an 'error' event on the element, not a play()
+  // rejection -- listen for both so neither failure mode is silent.
+  audio.onerror = () => {
+    isPlaying = false;
+    const err = audio.error;
+    el.status.textContent = `playback error (code ${err ? err.code : "?"}) -- see console`;
+    console.error("audio element error:", err, "url:", url);
+    playNext();
+  };
+  // play() returns a Promise that rejects silently (no visible error) if
+  // the browser's autoplay policy blocks it -- this happens easily here
+  // since play() fires from an async WebSocket message handler, far
+  // removed from any direct user click. Surface the failure instead of
+  // letting it disappear.
+  audio.play().catch((err) => {
+    isPlaying = false;
+    el.status.textContent = "playback blocked: " + err.message + " (click the page and try again)";
+    console.error("audio.play() failed:", err);
+  });
+}
+
+// Autoplay unlock: browsers require play() to trace back to a direct user
+// gesture. Our real play() calls happen later, inside async WebSocket
+// message handlers, which most browsers won't allow on their own. Playing
+// (and immediately allowing to finish) a near-silent clip synchronously
+// inside a real click handler grants this page's audio "user activation"
+// for the rest of the session, so the later async play() calls succeed.
+let audioUnlocked = false;
+function unlockAudioPlayback() {
+  if (audioUnlocked) return;
+  // a WAV with actual (if brief) silent sample data -- a header with a
+  // zero-length data chunk was tried first and may not count as valid,
+  // playable media in every browser, which would make this whole unlock
+  // step silently fail (its own errors are intentionally swallowed below)
+  const silence = new Audio(
+    "data:audio/wav;base64,UklGRuwAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  );
+  silence.play()
+    .then(() => { audioUnlocked = true; })
+    .catch((err) => { console.warn("audio unlock failed:", err); });
+}
+
+async function converse(wavBlob) {
+  el.status.textContent = "connecting...";
+  const wavBytes = await wavBlob.arrayBuffer();
+
+  ws = new WebSocket(el.wsUrl.value);
+  ws.binaryType = "arraybuffer";
+
+  let pendingSentence = null;
+
+  ws.onopen = () => {
+    el.status.textContent = "sending...";
+    ws.send(wavBytes);
+  };
+
+  ws.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      const blob = new Blob([event.data], { type: "audio/wav" });
+      const url = URL.createObjectURL(blob);
+      enqueueAudio(url);
+      // visible, scrubbable/downloadable player for manual inspection --
+      // separate from the auto-play queue's own Audio() instance above
+      if (pendingSentence && pendingSentence.turnEl) {
+        const player = document.createElement("audio");
+        player.controls = true;
+        player.src = url;
+        player.style.display = "block";
+        player.style.marginTop = "6px";
+        pendingSentence.turnEl.appendChild(player);
+      }
+      pendingSentence = null;
+      return;
+    }
+    const data = JSON.parse(event.data);
+    if (data.type === "sentence_audio") {
+      const turnEl = addTurn(`Agent (sentence ${data.index})`, data.sentence);
+      pendingSentence = { ...data, turnEl };
+      el.status.textContent = "generating more...";
+    } else if (data.type === "done") {
+      el.status.textContent = "done";
+      el.timings.textContent = JSON.stringify(data.timings, null, 2);
+      ws.close();
+    } else if (data.type === "error") {
+      el.status.textContent = "error: " + data.message;
+      ws.close();
+    }
+  };
+
+  ws.onerror = () => { el.status.textContent = "connection error"; };
+}
+
+el.recordBtn.onclick = async () => {
+  unlockAudioPlayback(); // must be a direct synchronous call inside this real click handler
+  if (!isRecording) {
+    el.transcript.innerHTML = "";
+    el.timings.textContent = "";
+    await startRecording();
+  } else {
+    isRecording = false;
+    el.recordBtn.textContent = "Hold to Speak (click to start/stop)";
+    el.recordBtn.classList.remove("recording");
+    el.recordBtn.disabled = true;
+    const wavBlob = await stopRecordingAndSend();
+    addTurn("You", "(sent to agent)");
+    await converse(wavBlob);
+    el.recordBtn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

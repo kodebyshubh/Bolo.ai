@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 4 Blind Scoring</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #1b1e26; --panel2: #232733; --text: #eee; --muted: #999;
+    --accent: #4f8cff; --good: #2ecc71; --border: #333844;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; max-width: 780px; margin: 0 auto; padding: 24px 16px 80px; background: var(--bg); color: var(--text); }
+  h1 { font-size: 18px; color: #aaa; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .ref-panel { border-color: var(--accent); }
+  .progress { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .sentence { font-size: 20px; line-height: 1.4; margin: 10px 0 16px; }
+  .lang-tag { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--panel2); padding: 2px 8px; border-radius: 6px; margin-bottom: 8px; }
+  .clip-row { background: var(--panel2); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+  .clip-row h3 { margin: 0 0 8px; font-size: 15px; }
+  audio { width: 100%; margin-bottom: 12px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 13px; margin-bottom: 4px; color: #ccc; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .scale { display: flex; gap: 6px; }
+  .scale button { flex: 1; padding: 8px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font-size: 14px; }
+  .scale button.selected { background: var(--accent); border-color: var(--accent); color: white; font-weight: bold; }
+  .binary { display: flex; gap: 8px; }
+  .binary button { flex: 1; padding: 8px 0; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font-size: 13px; }
+  .binary button.selected { background: var(--good); border-color: var(--good); color: white; font-weight: bold; }
+  .nav { display: flex; gap: 10px; margin-top: 16px; }
+  button.nav-btn { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; }
+  #prevBtn { background: #444; color: #ddd; }
+  #nextBtn { background: var(--accent); color: white; }
+  #downloadBtn { background: var(--good); color: white; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  #legend { font-size: 12px; color: var(--muted); margin-top: 24px; border-top: 1px solid var(--border); padding-top: 14px; }
+  #legend b { color: #ccc; }
+  #doneScreen { display: none; text-align: center; padding: 40px 0; }
+  #doneScreen h2 { color: var(--good); }
+</style>
+</head>
+<body>
+
+<h1>Phase 4 Blind Scoring -- bolo.ai</h1>
+<div class="sub">Rate each clip without knowing which model made it. Progress saves automatically in this browser.</div>
+
+<div class="panel ref-panel">
+  <div class="lang-tag">reference</div>
+  <div class="sentence" style="font-size:15px;">This is your own real voice -- the fine-tuning target speaker. Listen once, keep it in mind for every "similarity" score below.</div>
+  <audio controls src="../data/audio/selfrecorded/selfrecorded_001.wav"></audio>
+</div>
+
+<div id="scoringArea">
+  <div class="progress" id="progress"></div>
+  <div class="panel">
+    <div class="lang-tag" id="langTag"></div>
+    <div class="sentence" id="sentenceText"></div>
+
+    <div class="clip-row">
+      <h3>Clip A</h3>
+      <audio controls id="audioA"></audio>
+      <div class="field">
+        <label>Naturalness</label>
+        <div class="scale" id="natA"></div>
+        <div class="hint">1 = broken/robotic/unintelligible &middot; 3 = understandable but awkward &middot; 5 = sounds fully human</div>
+      </div>
+      <div class="field">
+        <label>Similarity to reference voice</label>
+        <div class="scale" id="simA"></div>
+        <div class="hint">1 = totally different voice &middot; 3 = same general vibe, different person &middot; 5 = sounds like the same person as the reference</div>
+      </div>
+      <div class="field">
+        <label>Pronunciation correct?</label>
+        <div class="binary" id="pronA"></div>
+        <div class="hint">0 = mispronounced / wrong words / unintelligible content &middot; 1 = said the sentence correctly</div>
+      </div>
+    </div>
+
+    <div class="clip-row">
+      <h3>Clip B</h3>
+      <audio controls id="audioB"></audio>
+      <div class="field">
+        <label>Naturalness</label>
+        <div class="scale" id="natB"></div>
+        <div class="hint">1 = broken/robotic/unintelligible &middot; 3 = understandable but awkward &middot; 5 = sounds fully human</div>
+      </div>
+      <div class="field">
+        <label>Similarity to reference voice</label>
+        <div class="scale" id="simB"></div>
+        <div class="hint">1 = totally different voice &middot; 3 = same general vibe, different person &middot; 5 = sounds like the same person as the reference</div>
+      </div>
+      <div class="field">
+        <label>Pronunciation correct?</label>
+        <div class="binary" id="pronB"></div>
+        <div class="hint">0 = mispronounced / wrong words / unintelligible content &middot; 1 = said the sentence correctly</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="nav-btn" id="prevBtn">Back</button>
+      <button class="nav-btn" id="nextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<div id="doneScreen">
+  <h2>All 20 sentences scored</h2>
+  <p>Click below to download results.csv, then replace evaluation/results.csv with it.</p>
+  <button class="nav-btn" id="downloadBtn">Download results.csv</button>
+  <div class="nav" style="justify-content:center;">
+    <button class="nav-btn" id="reviewBtn" style="background:#444;color:#ddd;">Review / edit answers</button>
+  </div>
+</div>
+
+<div id="legend">
+  <b>Reminder:</b> Clip A/B order is randomized per sentence and stored only in this browser -- you are not told which is base vs fine-tuned while scoring, so judge purely by what you hear.
+</div>
+
+<script>
+const sentences = [{"id": "test_001", "sentence": "Good afternoon, I wanted to check on my recent purchase.", "language": "english"}, {"id": "test_002", "sentence": "The weather forecast says it will rain tomorrow evening.", "language": "english"}, {"id": "test_003", "sentence": "Could you please schedule a meeting for next Wednesday?", "language": "english"}, {"id": "test_004", "sentence": "This restaurant serves the best coffee in the city.", "language": "english"}, {"id": "test_005", "sentence": "My flight got delayed by almost two hours today.", "language": "english"}, {"id": "test_006", "sentence": "The new software update fixed several annoying bugs.", "language": "english"}, {"id": "test_007", "sentence": "She works as a data scientist at a fintech startup.", "language": "english"}, {"id": "test_008", "sentence": "Mujhe kal subah jaldi uthna hai.", "language": "hindi"}, {"id": "test_009", "sentence": "Yah kitab bahut dilchasp hai.", "language": "hindi"}, {"id": "test_010", "sentence": "Kripya mujhe apna pata bataiye.", "language": "hindi"}, {"id": "test_011", "sentence": "Aaj mausam bahut suhavna hai.", "language": "hindi"}, {"id": "test_012", "sentence": "Meri maa khana bana rahi hain.", "language": "hindi"}, {"id": "test_013", "sentence": "Kya aap hindi samajh sakte hain?", "language": "hindi"}, {"id": "test_014", "sentence": "Yah shahar bahut sundar hai.", "language": "hindi"}, {"id": "test_015", "sentence": "Yeh naya gadget kaafi impressive laga mujhe.", "language": "hinglish"}, {"id": "test_016", "sentence": "Office mein aaj bahut important meeting hai.", "language": "hinglish"}, {"id": "test_017", "sentence": "Mujhe apna password reset karna hai please help.", "language": "hinglish"}, {"id": "test_018", "sentence": "Weekend par hum ek naya cafe explore karenge.", "language": "hinglish"}, {"id": "test_019", "sentence": "Yeh feature bug free nahi hai abhi tak.", "language": "hinglish"}, {"id": "test_020", "sentence": "Mera flight tomorrow morning hai, jaldi nikalna hoga.", "language": "hinglish"}];
+const STORAGE_KEY = "bolo_phase4_scores_v1";
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  const order = {};
+  sentences.forEach(s => { order[s.id] = Math.random() < 0.5 ? ["base", "finetuned"] : ["finetuned", "base"]; });
+  return { order, answers: {}, index: 0 };
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+let state = loadState();
+
+const el = {
+  progress: document.getElementById("progress"),
+  langTag: document.getElementById("langTag"),
+  sentenceText: document.getElementById("sentenceText"),
+  audioA: document.getElementById("audioA"),
+  audioB: document.getElementById("audioB"),
+  natA: document.getElementById("natA"),
+  simA: document.getElementById("simA"),
+  pronA: document.getElementById("pronA"),
+  natB: document.getElementById("natB"),
+  simB: document.getElementById("simB"),
+  pronB: document.getElementById("pronB"),
+  prevBtn: document.getElementById("prevBtn"),
+  nextBtn: document.getElementById("nextBtn"),
+  scoringArea: document.getElementById("scoringArea"),
+  doneScreen: document.getElementById("doneScreen"),
+  downloadBtn: document.getElementById("downloadBtn"),
+  reviewBtn: document.getElementById("reviewBtn"),
+};
+
+function makeScale(container, max, key, current, onPick) {
+  container.innerHTML = "";
+  for (let i = 1; i <= max; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i;
+    if (current === i) btn.classList.add("selected");
+    btn.onclick = () => onPick(i);
+    container.appendChild(btn);
+  }
+}
+
+function makeBinary(container, current, onPick) {
+  container.innerHTML = "";
+  [0, 1].forEach(v => {
+    const btn = document.createElement("button");
+    btn.textContent = v === 1 ? "1 (correct)" : "0 (wrong)";
+    if (current === v) btn.classList.add("selected");
+    btn.onclick = () => onPick(v);
+    container.appendChild(btn);
+  });
+}
+
+function getAnswer(id, slot, field) {
+  const a = state.answers[id];
+  if (!a || !a[slot]) return undefined;
+  return a[slot][field];
+}
+
+function setAnswer(id, slot, field, value) {
+  if (!state.answers[id]) state.answers[id] = {};
+  if (!state.answers[id][slot]) state.answers[id][slot] = {};
+  state.answers[id][slot][field] = value;
+  saveState();
+  render();
+}
+
+function isRowComplete(id) {
+  const a = state.answers[id];
+  if (!a || !a.A || !a.B) return false;
+  const fields = ["naturalness", "similarity", "pronunciation"];
+  return fields.every(f => a.A[f] !== undefined) && fields.every(f => a.B[f] !== undefined);
+}
+
+function render() {
+  if (state.index >= sentences.length) {
+    el.scoringArea.style.display = "none";
+    el.doneScreen.style.display = "block";
+    return;
+  }
+  el.scoringArea.style.display = "block";
+  el.doneScreen.style.display = "none";
+
+  const item = sentences[state.index];
+  const [slotA, slotB] = state.order[item.id];
+
+  el.progress.textContent = `Sentence ${state.index + 1} / ${sentences.length}`;
+  el.langTag.textContent = item.language;
+  el.sentenceText.textContent = item.sentence;
+  const DIR = { base: "baseline_outputs", finetuned: "finetuned_outputs" };
+  el.audioA.src = `${DIR[slotA]}/${item.id}.wav`;
+  el.audioB.src = `${DIR[slotB]}/${item.id}.wav`;
+
+  makeScale(el.natA, 5, "naturalness", getAnswer(item.id, "A", "naturalness"), v => setAnswer(item.id, "A", "naturalness", v));
+  makeScale(el.simA, 5, "similarity", getAnswer(item.id, "A", "similarity"), v => setAnswer(item.id, "A", "similarity", v));
+  makeBinary(el.pronA, getAnswer(item.id, "A", "pronunciation"), v => setAnswer(item.id, "A", "pronunciation", v));
+
+  makeScale(el.natB, 5, "naturalness", getAnswer(item.id, "B", "naturalness"), v => setAnswer(item.id, "B", "naturalness", v));
+  makeScale(el.simB, 5, "similarity", getAnswer(item.id, "B", "similarity"), v => setAnswer(item.id, "B", "similarity", v));
+  makeBinary(el.pronB, getAnswer(item.id, "B", "pronunciation"), v => setAnswer(item.id, "B", "pronunciation", v));
+
+  el.prevBtn.disabled = state.index === 0;
+  el.nextBtn.disabled = !isRowComplete(item.id);
+  el.nextBtn.textContent = state.index === sentences.length - 1 ? "Finish" : "Next";
+}
+
+el.prevBtn.onclick = () => { state.index = Math.max(0, state.index - 1); saveState(); render(); };
+el.nextBtn.onclick = () => { state.index += 1; saveState(); render(); };
+el.reviewBtn.onclick = () => { state.index = 0; saveState(); render(); };
+
+function toCsvValue(v) {
+  const s = String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+el.downloadBtn.onclick = () => {
+  const header = ["id", "sentence", "language", "base_naturalness", "finetuned_naturalness", "base_similarity", "finetuned_similarity", "base_pronunciation_ok", "finetuned_pronunciation_ok"];
+  const lines = [header.join(",")];
+  sentences.forEach(item => {
+    const [slotA, slotB] = state.order[item.id];
+    const a = state.answers[item.id] || {};
+    const byModel = {};
+    byModel[slotA] = a.A || {};
+    byModel[slotB] = a.B || {};
+    const row = [
+      item.id, item.sentence, item.language,
+      byModel.base?.naturalness ?? "", byModel.finetuned?.naturalness ?? "",
+      byModel.base?.similarity ?? "", byModel.finetuned?.similarity ?? "",
+      byModel.base?.pronunciation ?? "", byModel.finetuned?.pronunciation ?? "",
+    ];
+    lines.push(row.map(toCsvValue).join(","));
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "results.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+render();
+</script>
+</body>
+</html>

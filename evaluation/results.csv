@@ -1,0 +1,21 @@
+id,sentence,language,base_naturalness,finetuned_naturalness,base_similarity,finetuned_similarity,base_pronunciation_ok,finetuned_pronunciation_ok
+test_001,"Good afternoon, I wanted to check on my recent purchase.",english,4,3,2,2,1,1
+test_002,The weather forecast says it will rain tomorrow evening.,english,4,3,3,2,1,1
+test_003,Could you please schedule a meeting for next Wednesday?,english,5,3,4,2,1,0
+test_004,This restaurant serves the best coffee in the city.,english,5,3,3,2,1,1
+test_005,My flight got delayed by almost two hours today.,english,5,2,3,3,1,0
+test_006,The new software update fixed several annoying bugs.,english,5,3,4,2,1,0
+test_007,She works as a data scientist at a fintech startup.,english,5,4,2,2,1,0
+test_008,Mujhe kal subah jaldi uthna hai.,hindi,2,4,1,3,0,1
+test_009,Yah kitab bahut dilchasp hai.,hindi,2,4,2,3,0,1
+test_010,Kripya mujhe apna pata bataiye.,hindi,2,2,1,2,0,0
+test_011,Aaj mausam bahut suhavna hai.,hindi,2,3,1,1,0,0
+test_012,Meri maa khana bana rahi hain.,hindi,1,3,1,2,0,1
+test_013,Kya aap hindi samajh sakte hain?,hindi,2,4,1,2,0,1
+test_014,Yah shahar bahut sundar hai.,hindi,1,3,1,1,0,1
+test_015,Yeh naya gadget kaafi impressive laga mujhe.,hinglish,2,4,2,3,0,1
+test_016,Office mein aaj bahut important meeting hai.,hinglish,3,5,2,4,1,1
+test_017,Mujhe apna password reset karna hai please help.,hinglish,2,5,2,2,0,1
+test_018,Weekend par hum ek naya cafe explore karenge.,hinglish,2,4,2,2,0,1
+test_019,Yeh feature bug free nahi hai abhi tak.,hinglish,1,4,1,1,0,0
+test_020,"Mera flight tomorrow morning hai, jaldi nikalna hoga.",hinglish,1,4,1,2,0,1
