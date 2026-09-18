@@ -47,6 +47,20 @@ _PUNCT_NORMALIZE_MAP = str.maketrans({
 _DISALLOWED_CHARS_RE = re.compile(r"[^a-zA-Z0-9\s.,!?'\"-]")
 _MULTISPACE_RE = re.compile(r"\s+")
 
+# The self-recorded training script (data/hinglish_recording_script.txt)
+# always speaks numbers digit-by-digit ("order number one two three four
+# five", "pincode four one one zero one four") -- raw numeral characters
+# like "12345" or a bare list marker "2." were never seen as digits during
+# fine-tuning and were found to produce gibberish. Convert digit-by-digit,
+# matching the established training convention, rather than to
+# magnitude words ("twelve thousand...") which the data never modeled either.
+_DIGIT_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+_DIGITS_RE = re.compile(r"\d+")
+
+
+def _digits_to_words(match):
+    return " ".join(_DIGIT_WORDS[int(d)] for d in match.group(0))
+
 
 def _sanitize_for_tts(text):
     if DEVANAGARI_RE.search(text):
@@ -57,6 +71,7 @@ def _sanitize_for_tts(text):
         text = text.replace("|", ".").replace("..", ".")
         text = text.lower()
     text = text.translate(_PUNCT_NORMALIZE_MAP)
+    text = _DIGITS_RE.sub(_digits_to_words, text)
     text = _DISALLOWED_CHARS_RE.sub(" ", text)
     return _MULTISPACE_RE.sub(" ", text).strip()
 
@@ -98,6 +113,7 @@ def synthesize(text: str, voice=None, adapter_path=DEFAULT_ADAPTER_PATH):
     warns if a tag outside the fine-tuning data's known set is used, since
     its effect on generation wasn't verified during training."""
     text = _sanitize_for_tts(text)
+    print(f"agent.tts: sanitized text sent to model: {text!r}")
     _check_emotion_tags(text)
     _ensure_loaded(adapter_path)
     return _synthesize_with_models(_model, _tokenizer, _snac_model, text, voice=voice)

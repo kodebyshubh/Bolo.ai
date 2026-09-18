@@ -21,7 +21,10 @@ SYSTEM_PROMPT = (
     "don't guess. The user may write in English, Hindi, or Hinglish "
     "(code-switched Hindi/English); reply naturally in whichever style "
     "they used. Keep replies short and conversational, suitable for being "
-    "read aloud by a voice assistant."
+    "read aloud by a voice assistant. Reply only in plain spoken sentences "
+    "-- never use numbered or bulleted lists, markdown, or symbols. Spell "
+    "out any numbers (order IDs, dates, quantities) in words instead of "
+    "digits, since this is spoken aloud, not read."
 )
 
 _client = None
