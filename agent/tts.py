@@ -12,12 +12,36 @@ import os
 import re
 import sys
 
+from indic_transliteration import sanscript
+from indic_transliteration.sanscript import transliterate
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inference.tts_server import SAMPLE_RATE
 from inference.tts_server import load_models
 from inference.tts_server import synthesize as _synthesize_with_models
 
 DEFAULT_ADAPTER_PATH = "training/checkpoints/final_adapter"
+
+# The fine-tuning data was romanized Hindi (ITRANS) and plain-ASCII
+# punctuation only (see data/fetch_public_corpus.py, data/build_metadata.py's
+# ALLOWED_CHARS_RE) -- native Devanagari script and "smart" typographic
+# punctuation are both out-of-distribution for this checkpoint and were
+# found, by ear, to produce unintelligible/gibberish audio. The LLM
+# (agent/llm.py) is free to reply in either, so its output must be
+# normalized to the training distribution before it reaches synthesize().
+DEVANAGARI_RE = re.compile(r"[ऀ-ॿ]")
+_PUNCT_NORMALIZE_MAP = str.maketrans({
+    "‘": "'", "’": "'",  # ' '
+    "“": '"', "”": '"',  # " "
+    "–": "-", "—": "-",  # – —
+    "(": "", ")": "",
+})
+
+
+def _sanitize_for_tts(text):
+    if DEVANAGARI_RE.search(text):
+        text = transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS).lower()
+    return text.translate(_PUNCT_NORMALIZE_MAP)
 
 # Emotion tags the fine-tuning data actually used (see
 # data/hinglish_recording_script.txt section E) -- an unrecognized tag
@@ -56,6 +80,7 @@ def synthesize(text: str, voice=None, adapter_path=DEFAULT_ADAPTER_PATH):
     model as-is (Orpheus was trained to interpret them inline) -- this just
     warns if a tag outside the fine-tuning data's known set is used, since
     its effect on generation wasn't verified during training."""
+    text = _sanitize_for_tts(text)
     _check_emotion_tags(text)
     _ensure_loaded(adapter_path)
     return _synthesize_with_models(_model, _tokenizer, _snac_model, text, voice=voice)
