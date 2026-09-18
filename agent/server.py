@@ -8,6 +8,8 @@ Protocol on /ws/converse:
     input WAV file's bytes (the client records a full utterance first --
     true incremental mic-chunk upload to the server is a larger separate
     feature, not attempted in this step).
+  server -> client, once, as soon as transcription completes:
+    a text (JSON) frame: {"type": "stt", "text": str, "language": str}
   server -> client, per sentence, in order:
     1. a text (JSON) frame: {"type": "sentence_audio", "index": int, "sentence": str}
     2. a binary frame: that sentence's audio, WAV-encoded
@@ -63,7 +65,13 @@ async def converse(websocket: WebSocket):
         audio_bytes = await websocket.receive_bytes()
 
         for event in run_streaming(audio_bytes):
-            if event["type"] == "sentence_audio":
+            if event["type"] == "stt":
+                await websocket.send_json({
+                    "type": "stt",
+                    "text": event["text"],
+                    "language": event["language"],
+                })
+            elif event["type"] == "sentence_audio":
                 await websocket.send_json({
                     "type": "sentence_audio",
                     "index": event["index"],

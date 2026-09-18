@@ -110,6 +110,7 @@ def run_streaming(audio_input):
     stt_seconds = time.perf_counter() - start
     text = stt_result["text"]
     print(f"[STT] ({stt_result['language']}): {text}")
+    yield {"type": "stt", "text": text, "language": stt_result["language"]}
 
     sentence_queue = queue.Queue()
     audio_queue = queue.Queue()

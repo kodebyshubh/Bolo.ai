@@ -126,6 +126,7 @@ async function stopRecordingAndSend() {
 // turn comes up and it's already arrived.
 const playbackQueue = [];
 let isPlaying = false;
+let youTurnEl = null;
 
 function enqueueAudio(url) {
   playbackQueue.push(url);
@@ -217,7 +218,10 @@ async function converse(wavBlob) {
       return;
     }
     const data = JSON.parse(event.data);
-    if (data.type === "sentence_audio") {
+    if (data.type === "stt") {
+      if (youTurnEl) youTurnEl.querySelector(".text").textContent = data.text;
+      el.status.textContent = "thinking...";
+    } else if (data.type === "sentence_audio") {
       const turnEl = addTurn(`Agent (sentence ${data.index})`, data.sentence);
       pendingSentence = { ...data, turnEl };
       el.status.textContent = "generating more...";
@@ -246,7 +250,7 @@ el.recordBtn.onclick = async () => {
     el.recordBtn.classList.remove("recording");
     el.recordBtn.disabled = true;
     const wavBlob = await stopRecordingAndSend();
-    addTurn("You", "(sent to agent)");
+    youTurnEl = addTurn("You", "transcribing...");
     await converse(wavBlob);
     el.recordBtn.disabled = false;
   }
