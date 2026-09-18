@@ -33,6 +33,7 @@ so other connections aren't blocked while one is being served.
 Usage:
     uvicorn agent.server:app --host 0.0.0.0 --port 8000
 """
+import asyncio
 import io
 import json
 import os
@@ -71,6 +72,12 @@ async def converse(websocket: WebSocket):
                     "text": event["text"],
                     "language": event["language"],
                 })
+                # run_streaming() blocks the event loop right after this
+                # (queue.Queue().get() inside a sync generator, not asyncio-
+                # aware) -- yield once here first so the frame we just queued
+                # actually gets flushed to the client before that freeze,
+                # instead of sitting buffered until the loop next resumes.
+                await asyncio.sleep(0)
             elif event["type"] == "sentence_audio":
                 await websocket.send_json({
                     "type": "sentence_audio",

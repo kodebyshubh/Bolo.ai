@@ -33,15 +33,19 @@ DEVANAGARI_RE = re.compile(r"[ऀ-ॿ]")
 _PUNCT_NORMALIZE_MAP = str.maketrans({
     "‘": "'", "’": "'",  # ' '
     "“": '"', "”": '"',  # " "
-    "–": "-", "—": "-",  # – —
-    "(": "", ")": "",
+    "–": "-", "—": "-", "‑": "-",  # – — U+2011 non-breaking hyphen
+    "(": " ", ")": " ",
 })
 # Anything outside this set was never in the training data (see
 # data/build_metadata.py's own ALLOWED_CHARS_RE for the self-recorded side)
 # -- strip it rather than let the model try to pronounce an unseen
 # character. Applied after transliteration, so no Devanagari should remain
-# by this point; kept ASCII-only intentionally.
+# by this point; kept ASCII-only intentionally. Replaced with a space, not
+# deleted outright -- deleting can fuse two real words into one nonsense
+# word the model never saw (e.g. an unhandled Unicode hyphen variant once
+# turned "ice-cube" into "icecube"), which is worse than leaving a gap.
 _DISALLOWED_CHARS_RE = re.compile(r"[^a-zA-Z0-9\s.,!?'\"-]")
+_MULTISPACE_RE = re.compile(r"\s+")
 
 
 def _sanitize_for_tts(text):
@@ -53,7 +57,8 @@ def _sanitize_for_tts(text):
         text = text.replace("|", ".").replace("..", ".")
         text = text.lower()
     text = text.translate(_PUNCT_NORMALIZE_MAP)
-    return _DISALLOWED_CHARS_RE.sub("", text)
+    text = _DISALLOWED_CHARS_RE.sub(" ", text)
+    return _MULTISPACE_RE.sub(" ", text).strip()
 
 # Emotion tags the fine-tuning data actually used (see
 # data/hinglish_recording_script.txt section E) -- an unrecognized tag
