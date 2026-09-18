@@ -101,25 +101,39 @@ def tokens_to_audio(snac_model, token_ids):
     return audio.squeeze().cpu().numpy()
 
 
+def _generate_tokens(model, input_ids, do_sample):
+    kwargs = dict(max_new_tokens=1200, repetition_penalty=1.3, eos_token_id=END_OF_SPEECH)
+    if do_sample:
+        # same temperature/top_p Phase 2 used before greedy decoding was
+        # adopted -- only used here as a fallback retry, not the default.
+        kwargs.update(do_sample=True, temperature=0.4, top_p=0.8)
+    else:
+        kwargs.update(do_sample=False)
+    with torch.no_grad():
+        output_ids = model.generate(input_ids, **kwargs)
+    return output_ids[0, input_ids.shape[1]:].tolist()
+
+
 def synthesize(model, tokenizer, snac_model, text, voice=None):
     input_ids = build_prompt(tokenizer, text, voice=voice).to(model.device)
-    with torch.no_grad():
-        output_ids = model.generate(
-            input_ids,
-            max_new_tokens=1200,
-            do_sample=False,
-            repetition_penalty=1.3,
-            eos_token_id=END_OF_SPEECH,
-        )
-    generated = output_ids[0, input_ids.shape[1]:].tolist()
+
+    generated = _generate_tokens(model, input_ids, do_sample=False)
+    if END_OF_SPEECH not in generated:
+        # Greedy decoding is deterministic -- retrying with the exact same
+        # input would just reproduce the identical failure. Retry once with
+        # sampling instead, which can genuinely land on a different (and
+        # hopefully terminating) generation.
+        print(f"warning: no END_OF_SPEECH in {len(generated)} greedy-generated tokens for {text!r} -- retrying once with sampling")
+        generated = _generate_tokens(model, input_ids, do_sample=True)
+        if END_OF_SPEECH not in generated:
+            print(f"warning: no END_OF_SPEECH in {len(generated)} sampled-retry tokens for {text!r} either -- output may be truncated mid-utterance or contain trailing noise")
+
     if END_OF_SPEECH in generated:
         # generate()'s eos_token_id doesn't reliably stop sampling on this
         # tokenizer's added vocab -- it can run past END_OF_SPEECH into a
         # second/third repeat of the same utterance. Truncate to the first
         # speech segment ourselves.
         generated = generated[: generated.index(END_OF_SPEECH)]
-    else:
-        print(f"warning: no END_OF_SPEECH in {len(generated)} generated tokens for {text!r} -- output may be truncated mid-utterance or contain trailing noise")
     return tokens_to_audio(snac_model, generated)
 
 
